@@ -4,6 +4,8 @@ title: Destructuring some things
 
 This is a test. The following is test code that actually doesn't work.
 
+A little change.
+
 ```haskell
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GADTs #-}
