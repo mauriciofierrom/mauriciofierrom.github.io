@@ -1,2 +1,2 @@
-[![Build Status](https://travis-ci.com/mauriciofierrom/mauriciofierrom.github.io.svg?branch=heroku)](https://travis-ci.com/mauriciofierrom/mauriciofierrom.github.io)
+[![Build Status](https://travis-ci.com/mauriciofierrom/mauriciofierrom.github.io.svg?branch=hakyll)](https://travis-ci.com/mauriciofierrom/mauriciofierrom.github.io)
 # blog
