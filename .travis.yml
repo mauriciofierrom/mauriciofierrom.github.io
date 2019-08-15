@@ -1,13 +1,12 @@
-# Use new container infrastructure to enable caching
 sudo: false
 
-# Do not choose a language; we provide our own build tools.
-language: generic
+language: nix
+nix: 2.0.4
 
 # Caching so the next build will be fast too.
 cache:
   directories:
-  - $HOME/.stack
+  - /nix
 
 # Ensure necessary system libraries are present
 addons:
@@ -19,16 +18,6 @@ branches:
   only:
     - hakyll
 
-before_install:
-  # Download and unpack the stack executable
-  - mkdir -p ~/.local/bin
-  - export PATH=$HOME/.local/bin:$PATH
-  - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-
-install:
-  # Build dependencies
-  - stack install --no-terminal --install-ghc -j2
-
 before_script:
   - cd _site
   - git checkout master
@@ -37,7 +26,8 @@ before_script:
 
 script:
   # Build the blog instead of running tests
-  - stack exec blog build
+  - nix-build release.nix
+  - LANG=en_US.UTF-8 ./result/bin/blog build
 
 after_success:
   - git config --global user.email "mauriciofierrom@gmail.com"

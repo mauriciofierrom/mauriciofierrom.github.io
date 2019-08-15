@@ -2,6 +2,8 @@
 
 ### Haskell ###
 dist
+dist-newstyle
+.ghc*
 cabal-dev
 *.o
 *.hi
@@ -19,3 +21,4 @@ cabal.sandbox.config
 .stack-work/
 _cache/
 _site/
+result
