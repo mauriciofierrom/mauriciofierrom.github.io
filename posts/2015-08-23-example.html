@@ -38,22 +38,22 @@
   <div class="content">
     <p>This is a test. The following is test code that actually doesn’t work.</p>
 <p>A little change.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE StandaloneDeriving #-}</span></a>
-<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">{-# LANGUAGE GADTs #-}</span></a>
-<a class="sourceLine" id="cb1-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">data</span> <span class="dt">D</span> a <span class="kw">where</span></a>
-<a class="sourceLine" id="cb1-5" data-line-number="5">  <span class="dt">M</span><span class="ot"> ::</span> <span class="dt">D</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb1-6" data-line-number="6">  <span class="dt">F</span><span class="ot"> ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">D</span> <span class="dt">Int</span></a>
-<a class="sourceLine" id="cb1-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="kw">deriving</span> <span class="kw">instance</span> <span class="dt">Show</span> (<span class="dt">D</span> a)</a>
-<a class="sourceLine" id="cb1-9" data-line-number="9"></a>
-<a class="sourceLine" id="cb1-10" data-line-number="10"><span class="ot">main ::</span> <span class="dt">IO</span> ()</a>
-<a class="sourceLine" id="cb1-11" data-line-number="11">main <span class="fu">=</span></a>
-<a class="sourceLine" id="cb1-12" data-line-number="12">  <span class="kw">let</span> a <span class="fu">=</span> <span class="dt">M</span></a>
-<a class="sourceLine" id="cb1-13" data-line-number="13">      f <span class="fu">=</span> <span class="dt">F</span> <span class="dv">3</span></a>
-<a class="sourceLine" id="cb1-14" data-line-number="14">   <span class="kw">in</span> <span class="kw">case</span> a <span class="kw">of</span></a>
-<a class="sourceLine" id="cb1-15" data-line-number="15">        <span class="dt">M</span> <span class="ot">-&gt;</span> putStrLn <span class="st">&quot;Moriarty&quot;</span></a>
-<a class="sourceLine" id="cb1-16" data-line-number="16">        (<span class="dt">F</span> <span class="dv">3</span>) <span class="ot">-&gt;</span> putStrLn <span class="st">&quot;F x 3&quot;</span></a></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1"></a><span class="ot">{-# LANGUAGE StandaloneDeriving #-}</span></span>
+<span id="cb1-2"><a href="#cb1-2"></a><span class="ot">{-# LANGUAGE GADTs #-}</span></span>
+<span id="cb1-3"><a href="#cb1-3"></a></span>
+<span id="cb1-4"><a href="#cb1-4"></a><span class="kw">data</span> <span class="dt">D</span> a <span class="kw">where</span></span>
+<span id="cb1-5"><a href="#cb1-5"></a>  <span class="dt">M</span><span class="ot"> ::</span> <span class="dt">D</span> <span class="dt">Bool</span></span>
+<span id="cb1-6"><a href="#cb1-6"></a>  <span class="dt">F</span><span class="ot"> ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">D</span> <span class="dt">Int</span></span>
+<span id="cb1-7"><a href="#cb1-7"></a></span>
+<span id="cb1-8"><a href="#cb1-8"></a><span class="kw">deriving</span> <span class="kw">instance</span> <span class="dt">Show</span> (<span class="dt">D</span> a)</span>
+<span id="cb1-9"><a href="#cb1-9"></a></span>
+<span id="cb1-10"><a href="#cb1-10"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb1-11"><a href="#cb1-11"></a>main <span class="ot">=</span></span>
+<span id="cb1-12"><a href="#cb1-12"></a>  <span class="kw">let</span> a <span class="ot">=</span> <span class="dt">M</span></span>
+<span id="cb1-13"><a href="#cb1-13"></a>      f <span class="ot">=</span> <span class="dt">F</span> <span class="dv">3</span></span>
+<span id="cb1-14"><a href="#cb1-14"></a>   <span class="kw">in</span> <span class="kw">case</span> a <span class="kw">of</span></span>
+<span id="cb1-15"><a href="#cb1-15"></a>        <span class="dt">M</span> <span class="ot">-&gt;</span> <span class="fu">putStrLn</span> <span class="st">&quot;Moriarty&quot;</span></span>
+<span id="cb1-16"><a href="#cb1-16"></a>        (<span class="dt">F</span> <span class="dv">3</span>) <span class="ot">-&gt;</span> <span class="fu">putStrLn</span> <span class="st">&quot;F x 3&quot;</span></span></code></pre></div>
 <p>The following paragraph is pure lorem ipsum bs:</p>
 <p>Vivamus vel nisi ac lacus sollicitudin vulputate ac ut ligula. Nullam feugiat risus eget eros gravida in molestie sapien euismod. Nunc sed hendrerit orci. Nulla mollis consequat lorem ac blandit. Ut et turpis mauris. Nulla est odio, posuere id ullamcorper sit amet, tincidunt vel justo. Curabitur placerat tincidunt varius. Nulla vulputate, ipsum eu consectetur mollis, dui nibh aliquam neque, at ultricies leo ligula et arcu.</p>
   </div>
