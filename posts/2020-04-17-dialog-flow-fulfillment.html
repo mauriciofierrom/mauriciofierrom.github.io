@@ -1,0 +1,194 @@
+<html>
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+
+  <title>Mauricio Fierro</title>
+  <link rel="stylesheet" href="../css/bulma.min.css" title type="text/css" />
+  <link rel="stylesheet" href="../css/syntax.css" title type="text/css" />
+</head>
+
+<body>
+  <div class="container">
+    <div class="columns">
+      <div class="column is-one-quarter">
+        <div class="section">
+          <div class="level">
+            <div class="level-item has-text-centered">
+              <figure class="image is-128x128">
+                <a href="../"><img src="../images/mau.png" alt="mauricio fierro"></a>
+              </figure>
+            </div>
+          </div>
+          <aside class="menu">
+            <p class="menu-label">
+              Blog
+            </p>
+            <ul class="menu-list">
+              <li><a href="../posts.html">Posts</a></li>
+            </ul>
+            <p class="menu-label">
+              Personal
+            </p>
+            <ul class="menu-list">
+              <li><a href="../about.html">About me</a></li>
+              <li><a href>Where to find me</a></li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+      <div class="column is-three-quarters">
+        <section class="section">
+            <div class="section">
+  <div class="content">
+    <h1 class="title">Creating an assistant using Dialogflow Fulfillments with Haskell</h1>
+    <span class="subtitle">Posted on April 17, 2020</span>
+  </div>
+  <div class="content">
+    <p><a href="https://www.dialogflow.com">Dialogflow</a> is a Google service to create conversational services easily.</p>
+<p>The documentation describes it like this:</p>
+<blockquote>
+<p>Dialogflow is a natural language understanding platform that makes it easy to design and integrate a conversational user interface into your mobile app, web application, device, bot, interactive voice response system, and so on. Using Dialogflow, you can provide new and engaging ways for users to interact with your product.</p>
+</blockquote>
+<p>The process is rather simple. The basic elements are <code>Agent</code>s. An <code>Agent</code> can have one or more <code>Intent</code>s, which are the actions that the user wants the agent to complete. In order to achieve that, the intents must define a series of <code>Entities</code> that can appear in phrases uttered/written by the user. The agent has to be trained with possible phrases that could trigger the <code>Intent</code>, and that contain the entities defined for them. <code>Intent</code>s, therefore, are matched on whether a phrase that contains the entities required is recognized. Then the <code>Entities</code> and the matched <code>Intent</code> are bundled in a request to a <strong>fulfillment webhook</strong>, which is defined by the programmer (e.g. you) to respond with different formats. If data has to be preserved across the conversation, they can be set in the <code>Context</code> of the conversation.</p>
+<p>It is a bit complex to grasp if you’re new to this, so let’s work on an example.</p>
+<p>We’ll build a fulfillment webhook for two cases. The first one will be a question and an answer, and the second will be a little conversation to show the use of contexts.</p>
+<h1 id="pokémon-types">(Pokémon) Types</h1>
+<p>Our first example will be an <code>Intent</code> to find <strong>weaknesses</strong> and <strong>strengths</strong> of Pokémon types. We’ll need two entities for our example: <code>Quality</code> and <code>PokemonType</code>. A quality will be either <code>Weak</code> or <code>Effective</code>.</p>
+<p><img src="../images/entities.png" /></p>
+<p>To train the <code>Agent</code>, we must provide all possible values for the <code>Entity</code>, so that it can be recognized in user phrases. It’s easy to do so for the <code>Quality</code> and for the <code>PokemonType</code>s. Depending on your use case, you could also define synonyms for the values, which would make <code>Intent</code> matching more accurate. For the sake of the example, we’ll keep things simple.</p>
+<p><img src="../images/entity-values.png" /></p>
+<p>Now we must provide <strong>training phrases</strong> in the <code>Intent</code>s section. Adding as many possible phrasings of the desired input will make <code>Intent</code> matching more accurate.</p>
+<p><img src="../images/training-phrases.png" /></p>
+<p>The <strong>Action and parameters</strong> section will be automatically populated by the <code>Entities</code> recognized from the data we provided for the <code>Intent</code> and turn into their parameters.</p>
+<p>We must toggle the <code>Enable webhook call for this intent</code> option in the <code>Fulfillment</code> section of the <code>Intent</code>, to make Dialogflow contact the endpoint that will handle the response creation. If we don’t, then the Responses must be set in the same page and will always be the same.</p>
+<p><img src="../images/enable-webhook.png" /></p>
+<p>This covers all the setup required from the <code>Dialogflow</code> console. The next steps will be to create our webhook in Haskell to generate the responses for the <code>Intent</code>s.</p>
+<h3 id="fulfillment-webhook">Fulfillment webhook</h3>
+<p>Our webhook will be a <code>servant</code> endpoint that will receive the <code>WebhookRequest</code>, get the parameters from it, make a call to the <code>PokéApi</code> and answer with the desired response. To manage the queries we’ll use a simple <code>PokéApi</code> <a href="https://github.com/mauriciofierrom/pokeapi">client</a> created using <code>servant-client</code>, just for the sake of the example. To parse the request, get the intent’s parameters and create the appropiate responses, we’ll use the <a href="https://hackage.haskell.org/package/dialogflow-fulfillment">dialogflow-fulfillment</a> library.</p>
+<p>Let’s start with the definition of our <code>API</code> and the application to serve it:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">type</span> <span class="dt">API</span> <span class="ot">=</span> <span class="st">&quot;fulfillment&quot;</span> <span class="op">:&gt;</span> <span class="dt">ReqBody</span> '[<span class="dt">JSON</span>] <span class="dt">WebhookRequest</span> <span class="op">:&gt;</span> <span class="dt">Post</span> '[<span class="dt">JSON</span>] <span class="dt">WebhookResponse</span></span>
+<span id="cb1-2"><a href="#cb1-2"></a></span>
+<span id="cb1-3"><a href="#cb1-3"></a><span class="ot">fulFillmentAPI ::</span> <span class="dt">Proxy</span> <span class="dt">API</span></span>
+<span id="cb1-4"><a href="#cb1-4"></a>fulFillmentAPI <span class="ot">=</span> <span class="dt">Proxy</span></span></code></pre></div>
+<p>You can check the natural transformation required in order to use the <code>PokeApi</code> monad stack with <code>Servant</code> in the <a href="https://github.com/mauriciofierrom/poke-home/blob/master/src/Lib.hs#L47">github repo</a>.</p>
+<p>We need to create the fulfillment function to handle the request and return the collection of responses.</p>
+<p>First, we need a function to query the <code>PokéApi</code> with the parameters received in the request, which is defined as follows:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1"></a><span class="ot">typeWebhookRequest ::</span> <span class="dt">WebhookRequest</span> <span class="ot">-&gt;</span> <span class="dt">PokeApi</span> [<span class="dt">Type'</span>]</span>
+<span id="cb2-2"><a href="#cb2-2"></a>typeWebhookRequest req <span class="ot">=</span></span>
+<span id="cb2-3"><a href="#cb2-3"></a>  <span class="kw">let</span> typeParam <span class="ot">=</span> extractTypeParameter req</span>
+<span id="cb2-4"><a href="#cb2-4"></a>      qualifierParam <span class="ot">=</span> extractQualifierParameter req</span>
+<span id="cb2-5"><a href="#cb2-5"></a>  <span class="kw">in</span> <span class="kw">case</span> (typeParam, qualifierParam) <span class="kw">of</span></span>
+<span id="cb2-6"><a href="#cb2-6"></a>        (<span class="dt">Just</span> type', <span class="dt">Just</span> qualifier) <span class="ot">-&gt;</span></span>
+<span id="cb2-7"><a href="#cb2-7"></a>          <span class="kw">case</span> qualifier <span class="kw">of</span></span>
+<span id="cb2-8"><a href="#cb2-8"></a>            <span class="dt">Effective</span> <span class="ot">-&gt;</span> effectiveAgainst type'</span>
+<span id="cb2-9"><a href="#cb2-9"></a>            <span class="dt">Weak</span> <span class="ot">-&gt;</span> weakAgainst type'</span>
+<span id="cb2-10"><a href="#cb2-10"></a>        _ <span class="ot">-&gt;</span> <span class="fu">error</span> <span class="st">&quot;Failed!&quot;</span></span></code></pre></div>
+<p>This function extracts the <code>type</code> and <code>qualifier</code> parameters from the <code>QueryResult</code> portion of the <code>WebhookRequest</code>. If both exist, then we use PokeApi’s client library to check what types are effective or weak against the given type, depending on the <code>qualifier</code> parameter.</p>
+<p>We use it in the function that will handle the request.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1"></a><span class="ot">fulfillIntent ::</span> <span class="dt">WebhookRequest</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">PokeApi</span> <span class="dt">WebhookResponse</span></span>
+<span id="cb3-2"><a href="#cb3-2"></a>fulfillIntent req <span class="ot">=</span> \<span class="kw">case</span></span>
+<span id="cb3-3"><a href="#cb3-3"></a>  <span class="st">&quot;Get types&quot;</span> <span class="ot">-&gt;</span> createTypeResponse <span class="op">&lt;$&gt;</span> typeWebhookRequest req</span>
+<span id="cb3-4"><a href="#cb3-4"></a>  <span class="op">...</span></span></code></pre></div>
+<p>If we got the <code>type</code>, we create the <code>WebhookResponse</code> of the fulfillment, which is a type defined in <a href="https://hackage.haskell.org/package/dialogflow-fulfillment-0.1.0.0/docs/Dialogflow-V2-Fulfillment-Webhook-Response.html">dialogflow-fulfillment</a>. For this example, we’ll just add a simple response.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1"></a><span class="ot">createTypeResponse ::</span> [<span class="dt">Type'</span>] <span class="ot">-&gt;</span> <span class="dt">WebhookResponse</span></span>
+<span id="cb4-2"><a href="#cb4-2"></a>createTypeResponse types <span class="ot">=</span></span>
+<span id="cb4-3"><a href="#cb4-3"></a>  <span class="kw">let</span> types' <span class="ot">=</span> <span class="fu">fmap</span> getTypeName types</span>
+<span id="cb4-4"><a href="#cb4-4"></a>      msg <span class="ot">=</span> T.unpack <span class="op">$</span> T.intercalate <span class="st">&quot; and &quot;</span> types'</span>
+<span id="cb4-5"><a href="#cb4-5"></a>      speechResponse <span class="ot">=</span> <span class="dt">SimpleResponse</span> (<span class="dt">TextToSpeech</span> msg) (<span class="dt">Just</span> msg)</span>
+<span id="cb4-6"><a href="#cb4-6"></a>      response <span class="ot">=</span> <span class="dt">G.Response</span> <span class="dt">False</span> <span class="dt">Nothing</span> (<span class="dt">G.RichResponse</span> [<span class="dt">G.Item</span> <span class="op">$</span> <span class="dt">G.SimpleResponse</span> speechResponse] [] <span class="dt">Nothing</span>)</span>
+<span id="cb4-7"><a href="#cb4-7"></a>      payload <span class="ot">=</span> <span class="dt">Just</span> <span class="op">$</span> <span class="dt">G.GooglePayload</span> response</span>
+<span id="cb4-8"><a href="#cb4-8"></a>  <span class="kw">in</span> <span class="dt">WebhookResponse</span> (<span class="dt">Just</span> msg)</span>
+<span id="cb4-9"><a href="#cb4-9"></a>                     (<span class="dt">Just</span> [<span class="dt">Message</span> <span class="op">$</span> <span class="dt">SimpleResponses</span> [speechResponse]])</span>
+<span id="cb4-10"><a href="#cb4-10"></a>                     (<span class="dt">Just</span> <span class="st">&quot;mauriciofierro.dev&quot;</span>)</span>
+<span id="cb4-11"><a href="#cb4-11"></a>                     payload</span>
+<span id="cb4-12"><a href="#cb4-12"></a>                     <span class="dt">Nothing</span></span>
+<span id="cb4-13"><a href="#cb4-13"></a>                     <span class="dt">Nothing</span></span></code></pre></div>
+<p>We’re taking every Pokémon type we got from the <code>PokéApi</code> and intercalate the word <code>and</code> between them. This will be the message that the user will receive.</p>
+<p>At this point I’ll cheat and introduce the concept of a <code>Payload</code> a bit late. A payload is a <code>JSON</code> structure that defines the possible responses for platforms other than <code>Dialogflow</code>, for which <code>Dialogflow</code> offers integrations. They can be the <code>Google Assistant</code>, <code>Facebook Messenger</code>, <code>Slack</code>, <code>Telegram</code>, etc. You can check the <a href="https://cloud.google.com/dialogflow/docs/integrations">documentation</a> for all platforms supported.</p>
+<p>Currently, however, the <code>dialogflow-fulfillment</code> library only supports the Google Assistant payload.</p>
+<p>We use the <code>GooglePayload</code> type to add a <code>SimpleResponse</code> for the <code>Google Assistant</code> as well, so we can actually try it with the assistant on an android phone or on the Google Actions Simulator (after enabling the Google Assistant integration in the Dialogflow Console).</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1"></a><span class="op">...</span></span>
+<span id="cb5-2"><a href="#cb5-2"></a>response <span class="ot">=</span> <span class="dt">G.Response</span> <span class="dt">False</span> <span class="dt">Nothing</span> (<span class="dt">G.RichResponse</span> [<span class="dt">G.Item</span> <span class="op">$</span> <span class="dt">G.SimpleResponse</span> speechResponse] [] <span class="dt">Nothing</span>)</span>
+<span id="cb5-3"><a href="#cb5-3"></a>payload <span class="ot">=</span> <span class="dt">Just</span> <span class="op">$</span> <span class="dt">G.GooglePayload</span> response</span>
+<span id="cb5-4"><a href="#cb5-4"></a><span class="op">...</span></span></code></pre></div>
+<p>The <code>SimpleResponse</code> type in the <code>GooglePayload</code> module has the correct <code>ToJSON</code> instance to generate a valid response for the <code>Google Assistant</code>.</p>
+<p>If we test the action asking:</p>
+<blockquote>
+<p>What is poison weak against?</p>
+</blockquote>
+<p>We’ll get the response:</p>
+<blockquote>
+<p>ground and psychic</p>
+</blockquote>
+<h2 id="fulfillment-with-context">Fulfillment with Context</h2>
+<p>For our second example we’ll try to get the <strong>list of areas</strong> in a game that we can find Pokémons at. For that we need to have a little more complicated conversation.</p>
+<p>We’ll ask our assistant <strong>where</strong> a Pokémon is, the assistant will ask us in <strong>what game</strong> we want to know the location, and we will answer with the <strong>name of the game</strong>. The assistant then must provide us with all the areas that the <code>Pokémon</code> in question can be found at in the game we indicated. Let’s see an example using Bob as the assistant’s name and Alice as our name:</p>
+<blockquote>
+<p>Alice: Where’s Deoxys?</p>
+<p>Bob: In what game?</p>
+<p>Alice: Diamond</p>
+<p>Bob: In area 1 and area 3 and area 51 and area n</p>
+</blockquote>
+<p>To preserve data across questions and answers, <code>Dialogflow</code> provides us with <code>Context</code>s. They have as much of a lifespan as we set for them. For our example we need to save the name of the <code>Pokémon</code> in the context to use after our agent has enough information to query the <code>PokéApi</code> and generate a correct response.</p>
+<p>All we’ll do from the <code>Haskell</code> side will be to extract the parameters and context in the <strong>follow-up intent</strong>, and query the <code>PokéApi</code> with the knowledge we’ve gathered. From the <code>Dialogflow</code> side, we’ll create a follow-up intent by clicking the option in the list of <code>Intent</code>s.</p>
+<p><img src="../images/follow-up-intent.png" /></p>
+<p>And then create a <code>Context</code> in the original <code>Intent</code>.</p>
+<p><img src="../images/context.png" /></p>
+<p>Now all we have to do is extend our current webhook to match on our two new intents:</p>
+<ul>
+<li>Get Pokemon Location</li>
+<li>Get Pokemon Location - custom</li>
+</ul>
+<p>In our initial intent we’ll just answer with the <em>In what game?</em> question.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1"></a><span class="op">...</span></span>
+<span id="cb6-2"><a href="#cb6-2"></a><span class="st">&quot;Get Pokemon location&quot;</span> <span class="ot">-&gt;</span></span>
+<span id="cb6-3"><a href="#cb6-3"></a>    <span class="kw">let</span> msg <span class="ot">=</span> <span class="st">&quot;In what game?&quot;</span></span>
+<span id="cb6-4"><a href="#cb6-4"></a>        speechResponse <span class="ot">=</span> <span class="dt">SimpleResponse</span> (<span class="dt">TextToSpeech</span> msg) <span class="dt">Nothing</span></span>
+<span id="cb6-5"><a href="#cb6-5"></a>        response <span class="ot">=</span> <span class="dt">G.Response</span> <span class="dt">True</span> <span class="dt">Nothing</span> (<span class="dt">G.RichResponse</span>  [<span class="dt">G.Item</span> <span class="op">$</span> <span class="dt">G.SimpleResponse</span> speechResponse] [] <span class="dt">Nothing</span>)</span>
+<span id="cb6-6"><a href="#cb6-6"></a>        payload <span class="ot">=</span> <span class="dt">Just</span> <span class="op">$</span> <span class="dt">G.GooglePayload</span> response</span>
+<span id="cb6-7"><a href="#cb6-7"></a>     <span class="kw">in</span> <span class="fu">return</span> <span class="op">$</span> <span class="dt">WebhookResponse</span> (<span class="dt">Just</span> msg) (<span class="dt">Just</span> [<span class="dt">Message</span> <span class="op">$</span> <span class="dt">SimpleResponses</span> [speechResponse]]) (<span class="dt">Just</span> <span class="st">&quot;mauriciofierro.dev&quot;</span>) payload <span class="dt">Nothing</span> <span class="dt">Nothing</span></span>
+<span id="cb6-8"><a href="#cb6-8"></a><span class="op">...</span></span></code></pre></div>
+<p>The follow-up <code>Intent</code> is just like any other <code>Intent</code>. It needs a parameter and training phrases. In this case, the parameter we need is the name of the (main) <code>Pokémon</code> games. We feed all possible names and we let <code>Dialogflow</code> do its magic.</p>
+<p>Finally, we match on the follow-up <code>Intent</code>, and retrieve the <code>Context</code> that should’ve survived from the previous question, and the new parameter we need: the name of the game.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1"></a><span class="ot">extractEncounterParams ::</span> <span class="dt">WebhookRequest</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">EncounterParams</span></span>
+<span id="cb7-2"><a href="#cb7-2"></a>extractEncounterParams req <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb7-3"><a href="#cb7-3"></a>  game <span class="ot">&lt;-</span> extractGameParameter req</span>
+<span id="cb7-4"><a href="#cb7-4"></a>  oCtxs <span class="ot">&lt;-</span> outputContexts (queryResult req)</span>
+<span id="cb7-5"><a href="#cb7-5"></a>  name <span class="ot">&lt;-</span> getContextParameter oCtxs (session req <span class="op">&lt;&gt;</span> <span class="st">&quot;/contexts/getpokemonlocation-followup&quot;</span>) <span class="st">&quot;Pokemon&quot;</span></span>
+<span id="cb7-6"><a href="#cb7-6"></a>  <span class="fu">return</span> <span class="dt">EncounterParams</span>{<span class="op">..</span>}</span></code></pre></div>
+<p>We use the <code>Maybe</code> monad because monads are useful math-based abstractions we like having the option of learning some day outside the context of Haskell and which are also related to a couple of nice food metaphors, and we don’t fear them.</p>
+<p>If we were able to extract the encounter parameters successfully we can query the <code>PokéApi</code> with them:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1"></a><span class="ot">gameLocationWebhookRequest ::</span> <span class="dt">WebhookRequest</span> <span class="ot">-&gt;</span> <span class="dt">PokeApi</span> [<span class="dt">String</span>]</span>
+<span id="cb8-2"><a href="#cb8-2"></a>gameLocationWebhookRequest req <span class="ot">=</span></span>
+<span id="cb8-3"><a href="#cb8-3"></a>  <span class="kw">case</span> extractEncounterParams req <span class="kw">of</span></span>
+<span id="cb8-4"><a href="#cb8-4"></a>    <span class="dt">Just</span> <span class="dt">EncounterParams</span>{<span class="op">..</span>} <span class="ot">-&gt;</span> pokemonEncounterByGame name game</span>
+<span id="cb8-5"><a href="#cb8-5"></a>    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> lift <span class="op">.</span> except <span class="op">$</span> <span class="dt">Right</span> []</span></code></pre></div>
+<p>We match on our follow-up-intent and have the final form of our <code>Intent</code> fulfillment:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1"></a><span class="ot">fulfillIntent ::</span> <span class="dt">WebhookRequest</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">PokeApi</span> <span class="dt">WebhookResponse</span></span>
+<span id="cb9-2"><a href="#cb9-2"></a>fulfillIntent req <span class="ot">=</span> \<span class="kw">case</span></span>
+<span id="cb9-3"><a href="#cb9-3"></a>  <span class="st">&quot;Get types&quot;</span> <span class="ot">-&gt;</span> createTypeResponse <span class="op">&lt;$&gt;</span> typeWebhookRequest req</span>
+<span id="cb9-4"><a href="#cb9-4"></a>  <span class="st">&quot;Get Pokemon location&quot;</span> <span class="ot">-&gt;</span></span>
+<span id="cb9-5"><a href="#cb9-5"></a>    <span class="kw">let</span> msg <span class="ot">=</span> <span class="st">&quot;In what game?&quot;</span></span>
+<span id="cb9-6"><a href="#cb9-6"></a>        speechResponse <span class="ot">=</span> <span class="dt">SimpleResponse</span> (<span class="dt">TextToSpeech</span> msg) <span class="dt">Nothing</span></span>
+<span id="cb9-7"><a href="#cb9-7"></a>        response <span class="ot">=</span> <span class="dt">G.Response</span> <span class="dt">True</span> <span class="dt">Nothing</span> (<span class="dt">G.RichResponse</span>  [<span class="dt">G.Item</span> <span class="op">$</span> <span class="dt">G.SimpleResponse</span> speechResponse] [] <span class="dt">Nothing</span>)</span>
+<span id="cb9-8"><a href="#cb9-8"></a>        payload <span class="ot">=</span> <span class="dt">Just</span> <span class="op">$</span> <span class="dt">G.GooglePayload</span> response</span>
+<span id="cb9-9"><a href="#cb9-9"></a>     <span class="kw">in</span> <span class="fu">return</span> <span class="op">$</span> <span class="dt">WebhookResponse</span> (<span class="dt">Just</span> msg) (<span class="dt">Just</span> [<span class="dt">Message</span> <span class="op">$</span> <span class="dt">SimpleResponses</span> [speechResponse]]) (<span class="dt">Just</span> <span class="st">&quot;mauriciofierro.dev&quot;</span>) payload <span class="dt">Nothing</span> <span class="dt">Nothing</span></span>
+<span id="cb9-10"><a href="#cb9-10"></a>  <span class="st">&quot;Get Pokemon location - custom&quot;</span> <span class="ot">-&gt;</span> createFollowupResponse <span class="op">&lt;$&gt;</span> gameLocationWebhookRequest req</span></code></pre></div>
+<p>Et voilà! We have an <code>Agent</code> that will tell us where to find a <code>Pokémon</code> in a certain game and the strengths/weaknesses of Pokémon types.</p>
+<p>You can test the project by cloning and building it using <code>nix</code> or <code>cabal</code>. In order to make the <code>API</code> available to the Dialogflow Agent (which runs as a <code>Google Action</code>) you can use a service like <a href="https://www.serveo.net">serveo</a> or <code>ngrok</code>.</p>
+<p>You’ll need to setup the project in the <code>Dialogflow</code> console. You can import the agent using this <a href="https://drive.google.com/file/d/1b8MixW02oMnsUO40UYU9EJcHr-EC3Fjb/view?usp=sharing">exported zip</a>. A final configuration will require to add the URL that points to your (exposed) fulfillment webhook:</p>
+<p><img src="../images/fulfillment.png" /></p>
+<h2 id="conclusion">Conclusion</h2>
+<p>This was a rather basic introduction to Dialogflow and how to create <code>Agent</code>s using the <code>servant</code> + <code>dialogflow-fulfillment</code> libraries.</p>
+<p>I wrote the <code>dialogflow-fulfillment</code> library so any feedback, issues or PRs about it would be greatly appreciated.</p>
+<p>If you’re new to <code>servant</code> or <code>servant-client</code> you’re encouraged to add pull requests to the <a href="https://github.com/mauriciofierrom/poke-home">poke-home</a> and <a href="https://github.com/mauriciofierrom/pokeapi">pokeapi</a> repositories to try and extend their functionality. I’ll do my best to provide feedback in code review.</p>
+  </div>
+</div>
+
+        </div>
+      </div>
+    </div>
+</body>
+
+</html>
