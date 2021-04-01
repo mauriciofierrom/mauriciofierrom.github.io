@@ -1,7 +1,6 @@
 sudo: false
 
 language: nix
-nix: 2.0.4
 
 # Caching so the next build will be fast too.
 cache:
@@ -26,7 +25,7 @@ before_script:
 
 script:
   # Build the blog instead of running tests
-  - nix-build release.nix
+  - nix-build
   - LANG=en_US.UTF-8 ./result/bin/blog build
 
 after_success:

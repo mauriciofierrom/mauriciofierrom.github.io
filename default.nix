@@ -1,11 +1,31 @@
-{ mkDerivation, base, hakyll, stdenv }:
-mkDerivation {
-  pname = "blog";
-  version = "0.1.0.0";
-  src = ./.;
-  isLibrary = false;
-  isExecutable = true;
-  executableHaskellDepends = [ base hakyll ];
-  homepage = "https://github.com/githubuser/blog#readme";
-  license = stdenv.lib.licenses.bsd3;
+{ pkgs ? (import ./nix/nixpkgs { inherit system; })
+, system ? builtins.currentSystem
+}:
+
+let
+  source = pkgs.lib.sourceByRegex ./. [
+    "^.*\.md$"
+    "^app.*$"
+    "^data.*$"
+    "^blog\.cabal$"
+    "^site\.hs$"
+  ];
+  haskellPackages =  pkgs.haskellPackages.override {
+    overrides = blogOverlay;
+  };
+  blogOverlay = self: super: {
+    "blog" = super.callCabal2nix "blog" source { };
+  };
+in with haskellPackages; {
+  blog = blog;
+  shell = shellFor {
+    packages = ps: [
+      ps.blog
+    ];
+    buildInputs = [
+      hlint
+      ghcid
+    ];
+  };
+  inherit blogOverlay;
 }
