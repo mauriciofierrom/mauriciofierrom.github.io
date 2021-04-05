@@ -213,8 +213,8 @@ extractEncounterParams req = do
   return EncounterParams{..}
 ```
 
-We use the `Maybe` monad because monads are useful math-based abstractions we like having the option of
-learning some day outside the context of Haskell and which are also related to a couple of nice food metaphors, and we don't fear them.
+<span class="fun is-hidden">We use the `Maybe` monad because monads are useful math-based abstractions we like having the option of
+learning some day outside the context of Haskell and which are also related to a couple of nice food metaphors, and we don't fear them.</span>
 
 If we were able to extract the encounter parameters successfully
 we can query the `PokéApi` with them:
