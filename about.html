@@ -1,11 +1,55 @@
 <html>
-
 <head>
   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-
   <title>Mauricio Fierro</title>
   <link rel="stylesheet" href="./css/bulma.min.css" title type="text/css" />
   <link rel="stylesheet" href="./css/syntax.css" title type="text/css" />
+  <link rel="stylesheet" href="./css/default.css" title type="text/css" />
+  <script type="text/javascript">
+    const ToggleButton = {
+      FUN: "fun-button",
+      NORMAL: "normal-button"
+    }
+
+    const getActiveClassById = (id) => {
+      switch (id) {
+        case ToggleButton.FUN:
+          return "is-primary"
+        case ToggleButton.NORMAL:
+          return "is-dark"
+        default:
+          throw new Error('Cannot get active class: Unknown id');
+      }
+    }
+
+    const toggleSectionsById = (id) => {
+      const funBits = document.querySelectorAll('.fun')
+
+      switch (id) {
+        case ToggleButton.FUN:
+          funBits.forEach(funBit => funBit.classList.remove('is-hidden'))
+          break
+        case ToggleButton.NORMAL:
+          funBits.forEach(funBit => funBit.classList.add('is-hidden'))
+          break
+        default:
+          throw new Error('Cannot toggle section: Unknown id');
+      }
+    }
+
+    const updateButtons = (clickedButton, selectedButton) => {
+      selectedButton.classList.remove('is-selected')
+      selectedButton.classList.remove(getActiveClassById(selectedButton.id))
+      clickedButton.classList.add('is-selected')
+      clickedButton.classList.add(getActiveClassById(clickedButton.id))
+    }
+
+    const toggleFun = (clickedButton) => {
+      let selectedButton = document.querySelector('.is-selected')
+      updateButtons(clickedButton, selectedButton)
+      toggleSectionsById(clickedButton.id)
+    }
+  </script>
 </head>
 
 <body>
@@ -39,6 +83,12 @@
       </div>
       <div class="column is-three-quarters">
         <section class="section">
+            <div class="buttons has-addons is-right">
+              <button class="button" id="fun-button" onclick="toggleFun(this)">:
+              )</button>
+              <button class="button is-selected is-dark" id="normal-button" onclick="toggleFun(this)">:
+              |</button>
+            </div>
             <div class="section">
     <div class="content">
       <h1 class="title">About me</h1>
